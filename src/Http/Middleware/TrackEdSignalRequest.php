@@ -90,6 +90,10 @@ class TrackEdSignalRequest
             return false;
         }
 
+        if ((string) config('ed-signal.browser.mode', 'middleware') !== 'middleware') {
+            return false;
+        }
+
         if ((string) config('ed-signal.browser.sdk_url', '') === '') {
             return false;
         }

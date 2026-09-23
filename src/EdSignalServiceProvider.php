@@ -6,6 +6,7 @@ use ExpertDev\EdSignalLaravel\Console\Commands\EdSignalInstallCommand;
 use ExpertDev\EdSignalLaravel\Console\Commands\EdSignalTestCommand;
 use ExpertDev\EdSignalLaravel\Contracts\ConsentResolver;
 use ExpertDev\EdSignalLaravel\Http\Middleware\TrackEdSignalRequest;
+use ExpertDev\EdSignalLaravel\Support\BrowserSnippetRenderer;
 use ExpertDev\EdSignalLaravel\Support\CountryResolver;
 use ExpertDev\EdSignalLaravel\Support\DataSanitizer;
 use ExpertDev\EdSignalLaravel\Support\DefaultConsentResolver;
@@ -15,6 +16,7 @@ use ExpertDev\EdSignalLaravel\Support\VisitorSessionManager;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 
 class EdSignalServiceProvider extends ServiceProvider
@@ -34,6 +36,7 @@ class EdSignalServiceProvider extends ServiceProvider
         $this->app->singleton(DataSanitizer::class, DataSanitizer::class);
         $this->app->singleton(VisitorSessionManager::class, VisitorSessionManager::class);
         $this->app->singleton(SdkInjector::class, SdkInjector::class);
+        $this->app->singleton(BrowserSnippetRenderer::class, BrowserSnippetRenderer::class);
         $this->app->singleton(SignedServerEventClient::class, SignedServerEventClient::class);
 
         $this->app->singleton('ed-signal', function ($app): EdSignal {
@@ -59,7 +62,14 @@ class EdSignalServiceProvider extends ServiceProvider
         }
 
         $router->aliasMiddleware('ed-signal', TrackEdSignalRequest::class);
-        $router->pushMiddlewareToGroup('web', TrackEdSignalRequest::class);
+
+        if (config('ed-signal.tracking.use_middleware', true)) {
+            $router->pushMiddlewareToGroup('web', TrackEdSignalRequest::class);
+        }
+
+        Blade::directive('edSignalScripts', function (): string {
+            return '<?php echo app(' . var_export(BrowserSnippetRenderer::class, true) . ')->render(); ?>';
+        });
 
         if (config('ed-signal.tracking.track_auth_events_server', true)) {
             $this->app['events']->listen(Login::class, function (Login $event): void {

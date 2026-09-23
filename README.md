@@ -38,6 +38,8 @@ ED_SIGNAL_SECRET=your_secret
 
 ED_SIGNAL_BROWSER_SDK=true
 ED_SIGNAL_SDK_URL=https://tracking.example.com/measurement/v1/measurement.js
+ED_SIGNAL_BROWSER_MODE=middleware
+ED_SIGNAL_USE_MIDDLEWARE=true
 
 ED_SIGNAL_QUEUE=default
 ED_SIGNAL_REQUEST_TIMEOUT=10
@@ -46,6 +48,27 @@ ED_SIGNAL_REQUEST_TIMEOUT=10
 ED_SIGNAL_CONSENT_COOKIE=ed_consent_state
 ED_SIGNAL_CONSENT_RECEIPT_COOKIE=ed_measurement_consent_receipt_token
 ```
+
+## Full Page Cache Mode
+
+If your project serves cached HTML outside Laravel middleware, switch to Blade mode:
+
+```env
+ED_SIGNAL_BROWSER_MODE=blade
+ED_SIGNAL_USE_MIDDLEWARE=false
+```
+
+Then place this in your main layout before `</head>` or before `</body>`:
+
+```blade
+@edSignalScripts
+```
+
+Notes:
+
+- In Blade mode, browser-side tracking still works on cached pages.
+- Automatic server `page_view` / `form_submit` from middleware is disabled, because middleware is bypassed by full page cache.
+- Manual server events via `EdSignal::event(...)` still work normally.
 
 ## How It Works
 

@@ -16,11 +16,13 @@ return [
     'browser' => [
         'enabled' => env('ED_SIGNAL_BROWSER_SDK', true),
         'sdk_url' => env('ED_SIGNAL_SDK_URL', ''),
+        'mode' => env('ED_SIGNAL_BROWSER_MODE', 'middleware'), // middleware|blade
         'inject_on_html' => true,
         'consent_source' => 'laravel_adapter',
     ],
 
     'tracking' => [
+        'use_middleware' => env('ED_SIGNAL_USE_MIDDLEWARE', true),
         'track_page_view_server' => true,
         'track_form_submit_server' => true,
         'track_auth_events_server' => true,
