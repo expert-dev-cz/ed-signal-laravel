@@ -188,7 +188,21 @@ class EdSignal
     private function sendSyncSafely(array $payload, string $eventName): void
     {
         try {
-            $this->signedServerEventClient->send((array) config('ed-signal'), $payload);
+            $result = $this->signedServerEventClient->send((array) config('ed-signal'), $payload);
+
+            if (!$result['ok']) {
+                Log::warning('ED Signal sync send not accepted by collector.', [
+                    'event_name' => $eventName,
+                    'status_code' => $result['status_code'],
+                    'endpoint' => $result['endpoint'],
+                    'error' => $result['error_message'],
+                    'response_body' => $result['response_body'],
+                ]);
+
+                if (!(bool) config('ed-signal.suppress_dispatch_exceptions', true)) {
+                    throw new \RuntimeException($result['error_message'] !== '' ? $result['error_message'] : 'ED Signal sync send failed.');
+                }
+            }
         } catch (Throwable $exception) {
             Log::warning('ED Signal sync send failed.', [
                 'event_name' => $eventName,

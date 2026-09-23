@@ -7,7 +7,7 @@ use Illuminate\Console\Command;
 
 class EdSignalTestCommand extends Command
 {
-    protected $signature = 'ed-signal:test';
+    protected $signature = 'ed-signal:test {--vv : Show response body and config diagnostics}';
 
     protected $description = 'Sends a signed ED Signal test event to verify adapter connectivity.';
 
@@ -33,10 +33,40 @@ class EdSignalTestCommand extends Command
             ],
         ];
 
-        $client->send($config, $payload);
+        $result = $client->send($config, $payload);
 
-        $this->info('Test event sent. Check ED Signal ingest logs for acceptance.');
+        $this->line('Endpoint: ' . ($result['endpoint'] !== '' ? $result['endpoint'] : '(missing)'));
 
-        return self::SUCCESS;
+        if ($result['ok']) {
+            $this->info('Test event accepted by collector (HTTP ' . $result['status_code'] . ').');
+
+            if ($this->option('vv') && $result['response_body'] !== '') {
+                $this->newLine();
+                $this->line('Response body:');
+                $this->line($result['response_body']);
+            }
+
+            return self::SUCCESS;
+        }
+
+        $this->error('Test event failed. ' . $result['error_message']);
+        $this->line('HTTP status: ' . $result['status_code']);
+
+        if ($result['response_body'] !== '') {
+            $this->newLine();
+            $this->line('Response body:');
+            $this->line($result['response_body']);
+        }
+
+        if ($this->option('vv')) {
+            $this->newLine();
+            $this->line('Config diagnostics:');
+            $this->line('ED_SIGNAL_COLLECTOR_URL: ' . ((string) config('ed-signal.collector_base_url') !== '' ? 'set' : 'missing'));
+            $this->line('ED_SIGNAL_SITE_ID: ' . ((string) config('ed-signal.site_id') !== '' ? 'set' : 'missing'));
+            $this->line('ED_SIGNAL_KEY_ID: ' . ((string) config('ed-signal.key_id') !== '' ? 'set' : 'missing'));
+            $this->line('ED_SIGNAL_SECRET: ' . ((string) config('ed-signal.secret') !== '' ? 'set' : 'missing'));
+        }
+
+        return self::FAILURE;
     }
 }

@@ -139,6 +139,14 @@ EdSignal::purchase(
 php artisan ed-signal:test
 ```
 
+Verbose diagnostics:
+
+```bash
+php artisan ed-signal:test --vv
+```
+
+This prints endpoint, HTTP status, response body, and missing configuration hints.
+
 ## Notes
 
 - Historical records are not backfilled.
