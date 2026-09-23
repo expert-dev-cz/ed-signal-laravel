@@ -44,6 +44,7 @@ class EdSignalServiceProvider extends ServiceProvider
                 $app->make(ConsentResolver::class),
                 $app->make(CountryResolver::class),
                 $app->make(DataSanitizer::class),
+                $app->make(SignedServerEventClient::class),
             );
         });
     }

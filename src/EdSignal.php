@@ -6,9 +6,12 @@ use ExpertDev\EdSignalLaravel\Contracts\ConsentResolver;
 use ExpertDev\EdSignalLaravel\Jobs\SendServerEvent;
 use ExpertDev\EdSignalLaravel\Support\CountryResolver;
 use ExpertDev\EdSignalLaravel\Support\DataSanitizer;
+use ExpertDev\EdSignalLaravel\Support\SignedServerEventClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Throwable;
 
 class EdSignal
 {
@@ -16,6 +19,7 @@ class EdSignal
         private readonly ConsentResolver $consentResolver,
         private readonly CountryResolver $countryResolver,
         private readonly DataSanitizer $dataSanitizer,
+        private readonly SignedServerEventClient $signedServerEventClient,
     ) {
     }
 
@@ -38,6 +42,12 @@ class EdSignal
         $consent = $context['consent'] ?? $this->consentResolver->resolve($request);
         $payload = $this->buildPayload($request, $eventName, $data, $session, $consent);
 
+        $dispatchMode = (string) config('ed-signal.dispatch_mode', 'queue');
+        if ($dispatchMode === 'sync') {
+            $this->sendSyncSafely($payload, $eventName);
+            return;
+        }
+
         $queue = config('ed-signal.queue');
         $connection = config('ed-signal.queue_connection');
 
@@ -51,7 +61,24 @@ class EdSignal
             $job->onConnection($connection);
         }
 
-        dispatch($job);
+        try {
+            dispatch($job);
+        } catch (Throwable $exception) {
+            Log::warning('ED Signal queue dispatch failed.', [
+                'event_name' => $eventName,
+                'queue_connection' => $connection,
+                'error' => $exception->getMessage(),
+            ]);
+
+            if ((bool) config('ed-signal.queue_fallback_to_sync', true)) {
+                $this->sendSyncSafely($payload, $eventName);
+                return;
+            }
+
+            if (!(bool) config('ed-signal.suppress_dispatch_exceptions', true)) {
+                throw $exception;
+            }
+        }
     }
 
     /**
@@ -155,6 +182,23 @@ class EdSignal
         $value = trim($value);
 
         return $value === '' ? null : $value;
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function sendSyncSafely(array $payload, string $eventName): void
+    {
+        try {
+            $this->signedServerEventClient->send((array) config('ed-signal'), $payload);
+        } catch (Throwable $exception) {
+            Log::warning('ED Signal sync send failed.', [
+                'event_name' => $eventName,
+                'error' => $exception->getMessage(),
+            ]);
+
+            if (!(bool) config('ed-signal.suppress_dispatch_exceptions', true)) {
+                throw $exception;
+            }
+        }
     }
 
     /** @param array<string, bool> $consent */

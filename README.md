@@ -43,11 +43,35 @@ ED_SIGNAL_USE_MIDDLEWARE=true
 
 ED_SIGNAL_QUEUE=default
 ED_SIGNAL_REQUEST_TIMEOUT=10
+ED_SIGNAL_DISPATCH_MODE=queue
+ED_SIGNAL_QUEUE_FALLBACK_TO_SYNC=true
+ED_SIGNAL_SUPPRESS_DISPATCH_EXCEPTIONS=true
 
 # Same cookie bar across Laravel websites
 ED_SIGNAL_CONSENT_COOKIE=ed_consent_state
 ED_SIGNAL_CONSENT_RECEIPT_COOKIE=ed_measurement_consent_receipt_token
 ```
+
+### Queue Safety (Important)
+
+If your production does not have `phpredis` (or Redis queue client), do one of these:
+
+```env
+# Safe fallback mode (recommended)
+ED_SIGNAL_DISPATCH_MODE=queue
+ED_SIGNAL_QUEUE_CONNECTION=redis
+ED_SIGNAL_QUEUE_FALLBACK_TO_SYNC=true
+ED_SIGNAL_SUPPRESS_DISPATCH_EXCEPTIONS=true
+```
+
+or force synchronous sending:
+
+```env
+ED_SIGNAL_DISPATCH_MODE=sync
+ED_SIGNAL_QUEUE_CONNECTION=
+```
+
+This prevents authentication/login requests from failing when queue dispatch throws runtime errors.
 
 ## Full Page Cache Mode
 

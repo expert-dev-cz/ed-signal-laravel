@@ -11,6 +11,9 @@ return [
     'request_timeout' => (int) env('ED_SIGNAL_REQUEST_TIMEOUT', 10),
     'queue' => env('ED_SIGNAL_QUEUE', null),
     'queue_connection' => env('ED_SIGNAL_QUEUE_CONNECTION', null),
+    'dispatch_mode' => env('ED_SIGNAL_DISPATCH_MODE', 'queue'), // queue|sync
+    'queue_fallback_to_sync' => env('ED_SIGNAL_QUEUE_FALLBACK_TO_SYNC', true),
+    'suppress_dispatch_exceptions' => env('ED_SIGNAL_SUPPRESS_DISPATCH_EXCEPTIONS', true),
     'send_server_events' => env('ED_SIGNAL_SEND_SERVER_EVENTS', true),
 
     'browser' => [
