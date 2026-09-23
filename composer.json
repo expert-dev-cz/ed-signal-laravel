@@ -1,0 +1,30 @@
+{
+  "name": "expertdev/ed-signal-laravel",
+  "description": "ED Signal Laravel adapter for automatic browser and server-side measurement.",
+  "type": "library",
+  "license": "proprietary",
+  "require": {
+    "php": "^8.2",
+    "illuminate/support": "^10.0|^11.0|^12.0",
+    "illuminate/http": "^10.0|^11.0|^12.0",
+    "illuminate/queue": "^10.0|^11.0|^12.0",
+    "illuminate/events": "^10.0|^11.0|^12.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "ExpertDev\\EdSignalLaravel\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "ExpertDev\\EdSignalLaravel\\EdSignalServiceProvider"
+      ],
+      "aliases": {
+        "EdSignal": "ExpertDev\\EdSignalLaravel\\Facades\\EdSignal"
+      }
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}
