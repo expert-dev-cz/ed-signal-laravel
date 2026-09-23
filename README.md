@@ -2,6 +2,11 @@
 
 Reusable Laravel package for custom (non-WordPress) websites. It mirrors the WordPress adapter behavior: automatic browser SDK init, server-side event delivery, consent mode handling, attribution, anonymous visitor/session IDs, and anonymized country enrichment.
 
+## Compatibility
+
+- PHP 8.1+
+- Laravel 9, 10, 11, 12, 13
+
 ## Features
 
 - Automatic tracking right after installation (no template edits required)
