@@ -2,11 +2,18 @@
 
 namespace ExpertDev\EdSignalLaravel\Support;
 
+use Illuminate\Http\Request;
+
 class BrowserSnippetRenderer
 {
     public function render(): string
     {
         if (!config('ed-signal.enabled', false) || !config('ed-signal.browser.enabled', true)) {
+            return '';
+        }
+
+        $request = request();
+        if ($request instanceof Request && $this->isExcludedPath($request)) {
             return '';
         }
 
@@ -56,5 +63,18 @@ class BrowserSnippetRenderer
             . '})();</script>'
             . '<script async src="' . $safeSdkUrl . '" data-ed-signal-measurement-sdk="1"></script>'
             . '<script>window.ExpertMeasurement&&window.ExpertMeasurement.init(' . $initJson . ');</script>';
+    }
+
+    private function isExcludedPath(Request $request): bool
+    {
+        $patterns = (array) config('ed-signal.tracking.exclude_paths', []);
+
+        foreach ($patterns as $pattern) {
+            if (is_string($pattern) && $pattern !== '' && $request->is($pattern)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -74,26 +74,53 @@ class EdSignalServiceProvider extends ServiceProvider
 
         if (config('ed-signal.tracking.track_auth_events_server', true)) {
             $this->app['events']->listen(Login::class, function (Login $event): void {
+                $request = request();
+                if ($this->isExcludedPath($request)) {
+                    return;
+                }
+
                 app('ed-signal')->event('login', [
                     'auth_provider' => 'laravel',
                     'guard' => $event->guard,
                 ], [
-                    'request' => request(),
-                    'session' => (array) request()->attributes->get('ed_signal.session', []),
-                    'consent' => (array) request()->attributes->get('ed_signal.consent', []),
+                    'request' => $request,
+                    'session' => (array) $request->attributes->get('ed_signal.session', []),
+                    'consent' => (array) $request->attributes->get('ed_signal.consent', []),
                 ]);
             });
 
             $this->app['events']->listen(Registered::class, function (Registered $event): void {
+                $request = request();
+                if ($this->isExcludedPath($request)) {
+                    return;
+                }
+
                 app('ed-signal')->event('sign_up', [
                     'auth_provider' => 'laravel',
                     'user_type' => get_class($event->user),
                 ], [
-                    'request' => request(),
-                    'session' => (array) request()->attributes->get('ed_signal.session', []),
-                    'consent' => (array) request()->attributes->get('ed_signal.consent', []),
+                    'request' => $request,
+                    'session' => (array) $request->attributes->get('ed_signal.session', []),
+                    'consent' => (array) $request->attributes->get('ed_signal.consent', []),
                 ]);
             });
         }
+    }
+
+    private function isExcludedPath(mixed $request): bool
+    {
+        if (!$request instanceof \Illuminate\Http\Request) {
+            return false;
+        }
+
+        $patterns = (array) config('ed-signal.tracking.exclude_paths', []);
+
+        foreach ($patterns as $pattern) {
+            if (is_string($pattern) && $pattern !== '' && $request->is($pattern)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
