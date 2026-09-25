@@ -22,9 +22,11 @@ class TrackEdSignalRequest
 
     public function handle(Request $request, Closure $next): Response
     {
-        if (!config('ed-signal.enabled', false) || $this->isExcluded($request)) {
+        $excluded = $this->isExcluded($request);
+        if (!config('ed-signal.enabled', false) || $excluded) {
             /** @var Response $response */
             $response = $next($request);
+            $this->addDebugHeader($response, $excluded ? 'excluded' : 'disabled');
             return $response;
         }
 
@@ -81,7 +83,16 @@ class TrackEdSignalRequest
             $response->setContent($this->sdkInjector->inject($content, $sdkUrl, $init));
         }
 
+        $this->addDebugHeader($response, 'active');
+
         return $response;
+    }
+
+    private function addDebugHeader(Response $response, string $status): void
+    {
+        if ((bool) config('ed-signal.debug', false)) {
+            $response->headers->set('X-ED-Signal-Debug', $status);
+        }
     }
 
     private function shouldInjectSdk(Response $response): bool

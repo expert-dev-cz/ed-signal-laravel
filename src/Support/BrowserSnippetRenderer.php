@@ -45,24 +45,27 @@ class BrowserSnippetRenderer
             'consentSource' => (string) config('ed-signal.browser.consent_source', 'laravel_adapter'),
         ];
 
-        $initJson = json_encode($init, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        if (!is_string($initJson)) {
+        $initJson = json_encode($init, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+        $sdkUrlJson = json_encode($sdkUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+        if (!is_string($initJson) || !is_string($sdkUrlJson)) {
             return '';
         }
 
-        $safeSdkUrl = htmlspecialchars($sdkUrl, ENT_QUOTES, 'UTF-8');
         $safeConsentCookie = json_encode($consentCookieName, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '"ed_consent_state"';
         $safeReceiptCookie = json_encode($receiptCookieName, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '"ed_measurement_consent_receipt_token"';
 
-        return '<script>(function(){'
+        return '<script data-ed-signal-measurement-sdk="1" data-ed-signal-bootstrap="1">(function(){'
             . 'function readCookie(name){var m=document.cookie.match(new RegExp("(?:^|; )"+name.replace(/[.$?*|{}()\\[\\]\\\\/+^]/g,"\\\\$&")+"=([^;]*)"));return m?m[1]:null;}'
             . 'var consentRaw=readCookie(' . $safeConsentCookie . ');'
             . 'if(consentRaw){try{var parsed=JSON.parse(decodeURIComponent(consentRaw));if(parsed&&typeof parsed==="object"){window.__edConsent=parsed;}}catch(e){}}'
             . 'var receipt=readCookie(' . $safeReceiptCookie . ');'
             . 'if(receipt){try{window.__edConsentReceiptToken=decodeURIComponent(receipt);}catch(e){window.__edConsentReceiptToken=receipt;}}'
-            . '})();</script>'
-            . '<script async src="' . $safeSdkUrl . '" data-ed-signal-measurement-sdk="1"></script>'
-            . '<script>window.ExpertMeasurement&&window.ExpertMeasurement.init(' . $initJson . ');</script>';
+            . 'var config=' . $initJson . ';'
+            . 'function init(){if(window.ExpertMeasurement){window.ExpertMeasurement.init(config);}}'
+            . 'if(window.ExpertMeasurement){init();return;}'
+            . 'var script=document.createElement("script");script.async=true;script.src=' . $sdkUrlJson . ';'
+            . 'script.onload=init;(document.head||document.documentElement).appendChild(script);'
+            . '})();</script>';
     }
 
     private function isExcludedPath(Request $request): bool

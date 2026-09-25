@@ -2,6 +2,7 @@
 
 namespace ExpertDev\EdSignalLaravel\Console\Commands;
 
+use ExpertDev\EdSignalLaravel\Http\Middleware\TrackEdSignalRequest;
 use ExpertDev\EdSignalLaravel\Support\SignedServerEventClient;
 use Illuminate\Console\Command;
 
@@ -80,21 +81,39 @@ class EdSignalTestCommand extends Command
         $configuredConnection = (string) config('ed-signal.queue_connection', '');
         $connection = $configuredConnection !== '' ? $configuredConnection : (string) config('queue.default', '');
         $driver = (string) config('queue.connections.' . $connection . '.driver', 'unknown');
+        $middlewareGroups = app('router')->getMiddlewareGroups();
+        $webMiddleware = (array) ($middlewareGroups['web'] ?? []);
+        $middlewareRegistered = in_array(TrackEdSignalRequest::class, $webMiddleware, true);
+        $browserMode = (string) config('ed-signal.browser.mode', 'middleware');
+        $collectorBaseUrl = rtrim((string) config('ed-signal.collector_base_url', ''), '/');
 
         $this->newLine();
         $this->line('Runtime diagnostics:');
         $this->line('ED Signal enabled: ' . ((bool) config('ed-signal.enabled', false) ? 'yes' : 'no'));
         $this->line('Server events enabled: ' . ((bool) config('ed-signal.send_server_events', true) ? 'yes' : 'no'));
-        $this->line('Middleware enabled: ' . ((bool) config('ed-signal.tracking.use_middleware', true) ? 'yes' : 'no'));
+        $this->line('Browser mode: ' . $browserMode);
+        $this->line('Middleware config enabled: ' . ((bool) config('ed-signal.tracking.use_middleware', true) ? 'yes' : 'no'));
+        $this->line('Middleware registered in web group: ' . ($middlewareRegistered ? 'yes' : 'NO'));
         $this->line('Browser SDK URL: ' . ((string) config('ed-signal.browser.sdk_url', '') !== '' ? 'set' : 'missing'));
+        $this->line('Browser event endpoint: ' . ($collectorBaseUrl !== '' ? $collectorBaseUrl . '/v1/events' : '(missing)'));
         $this->line('Dispatch mode: ' . $dispatchMode);
+
+        if ($browserMode === 'blade') {
+            $this->newLine();
+            $this->warn('Full-page cache mode: Laravel middleware and automatic server page views are bypassed on cache hits.');
+            $this->line('Automatic page views must come from the browser SDK (source=browser).');
+            $this->line('Required: place @edSignalScripts in the cached Blade layout, then purge and rebuild the full-page cache.');
+            $this->line('Verify the public HTML contains: data-ed-signal-bootstrap="1"');
+        } elseif ((bool) config('ed-signal.tracking.use_middleware', true)) {
+            $this->line('Full-page cache: middleware mode cannot inject or track requests served before Laravel.');
+        }
 
         if ($dispatchMode === 'queue') {
             $this->line('Queue connection: ' . ($connection !== '' ? $connection : '(missing)'));
             $this->line('Queue driver: ' . $driver);
 
             if ($driver !== 'sync') {
-                $this->warn('Normal events require a running queue worker: php artisan queue:work -v');
+                $this->warn('Server events require a running queue worker: php artisan queue:work -v');
                 $this->warn('For a quick check set ED_SIGNAL_DISPATCH_MODE=sync and run php artisan config:clear.');
             }
         }
@@ -102,7 +121,7 @@ class EdSignalTestCommand extends Command
         if (!(bool) config('ed-signal.debug', false)) {
             $this->line('Debug logging: off (set ED_SIGNAL_DEBUG=true and run php artisan config:clear)');
         } else {
-            $this->line('Debug logging: on (inspect storage/logs/laravel.log)');
+            $this->line('Debug diagnostics: on (inspect storage/logs/laravel.log and X-ED-Signal-Debug response header)');
         }
     }
 }

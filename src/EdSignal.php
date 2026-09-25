@@ -255,7 +255,7 @@ class EdSignal
     private function debug(string $message, array $context = []): void
     {
         if ((bool) config('ed-signal.debug', false)) {
-            Log::debug($message, $context);
+            Log::info($message, $context);
         }
     }
 }

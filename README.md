@@ -89,10 +89,13 @@ Then place this in your main layout before `</head>` or before `</body>`:
 @edSignalScripts
 ```
 
+Purge and rebuild the full-page cache after adding the directive or changing ED Signal configuration. Confirm the cached public HTML contains `data-ed-signal-bootstrap="1"`; browser DevTools should then show the SDK request followed by a `POST` to `/api/v1/events`.
+
 Notes:
 
 - In Blade mode, browser-side tracking still works on cached pages.
 - Automatic server `page_view` / `form_submit` from middleware is disabled, because middleware is bypassed by full page cache.
+- Browser events do not use Laravel queues. Queue workers are only relevant to server events that execute inside Laravel.
 - Manual server events via `EdSignal::event(...)` still work normally.
 
 ## How It Works

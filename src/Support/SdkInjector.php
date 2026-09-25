@@ -17,13 +17,19 @@ class SdkInjector
             return $html;
         }
 
-        $configJson = json_encode($initConfig, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        if (!is_string($configJson)) {
+        $configJson = json_encode($initConfig, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+        $sdkUrlJson = json_encode($sdkUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+        if (!is_string($configJson) || !is_string($sdkUrlJson)) {
             return $html;
         }
 
-        $snippet = "\n<script async src=\"" . e($sdkUrl) . "\" data-ed-signal-measurement-sdk=\"1\"></script>\n"
-            . "<script>window.ExpertMeasurement&&window.ExpertMeasurement.init(" . $configJson . ");</script>\n";
+        $snippet = "\n<script data-ed-signal-measurement-sdk=\"1\" data-ed-signal-bootstrap=\"1\">(function(){"
+            . 'var config=' . $configJson . ';'
+            . 'function init(){if(window.ExpertMeasurement){window.ExpertMeasurement.init(config);}}'
+            . 'if(window.ExpertMeasurement){init();return;}'
+            . 'var script=document.createElement("script");script.async=true;script.src=' . $sdkUrlJson . ';'
+            . 'script.onload=init;(document.head||document.documentElement).appendChild(script);'
+            . "})();</script>\n";
 
         if (str_contains($html, '</head>')) {
             return str_replace('</head>', $snippet . '</head>', $html);

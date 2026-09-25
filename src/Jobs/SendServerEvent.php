@@ -54,7 +54,7 @@ class SendServerEvent implements ShouldQueue
         }
 
         if ((bool) config('ed-signal.debug', false)) {
-            Log::debug('ED Signal queued event accepted by collector.', [
+            Log::info('ED Signal queued event accepted by collector.', [
                 'event_name' => $this->payload['event_name'] ?? null,
                 'event_id' => $this->payload['event_id'] ?? null,
                 'status_code' => $result['status_code'],
