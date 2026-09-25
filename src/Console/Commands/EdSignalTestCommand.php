@@ -40,10 +40,14 @@ class EdSignalTestCommand extends Command
         if ($result['ok']) {
             $this->info('Test event accepted by collector (HTTP ' . $result['status_code'] . ').');
 
-            if ($this->option('vv') && $result['response_body'] !== '') {
-                $this->newLine();
-                $this->line('Response body:');
-                $this->line($result['response_body']);
+            if ($this->option('vv')) {
+                if ($result['response_body'] !== '') {
+                    $this->newLine();
+                    $this->line('Response body:');
+                    $this->line($result['response_body']);
+                }
+
+                $this->printRuntimeDiagnostics();
             }
 
             return self::SUCCESS;
@@ -68,5 +72,37 @@ class EdSignalTestCommand extends Command
         }
 
         return self::FAILURE;
+    }
+
+    private function printRuntimeDiagnostics(): void
+    {
+        $dispatchMode = (string) config('ed-signal.dispatch_mode', 'queue');
+        $configuredConnection = (string) config('ed-signal.queue_connection', '');
+        $connection = $configuredConnection !== '' ? $configuredConnection : (string) config('queue.default', '');
+        $driver = (string) config('queue.connections.' . $connection . '.driver', 'unknown');
+
+        $this->newLine();
+        $this->line('Runtime diagnostics:');
+        $this->line('ED Signal enabled: ' . ((bool) config('ed-signal.enabled', false) ? 'yes' : 'no'));
+        $this->line('Server events enabled: ' . ((bool) config('ed-signal.send_server_events', true) ? 'yes' : 'no'));
+        $this->line('Middleware enabled: ' . ((bool) config('ed-signal.tracking.use_middleware', true) ? 'yes' : 'no'));
+        $this->line('Browser SDK URL: ' . ((string) config('ed-signal.browser.sdk_url', '') !== '' ? 'set' : 'missing'));
+        $this->line('Dispatch mode: ' . $dispatchMode);
+
+        if ($dispatchMode === 'queue') {
+            $this->line('Queue connection: ' . ($connection !== '' ? $connection : '(missing)'));
+            $this->line('Queue driver: ' . $driver);
+
+            if ($driver !== 'sync') {
+                $this->warn('Normal events require a running queue worker: php artisan queue:work -v');
+                $this->warn('For a quick check set ED_SIGNAL_DISPATCH_MODE=sync and run php artisan config:clear.');
+            }
+        }
+
+        if (!(bool) config('ed-signal.debug', false)) {
+            $this->line('Debug logging: off (set ED_SIGNAL_DEBUG=true and run php artisan config:clear)');
+        } else {
+            $this->line('Debug logging: on (inspect storage/logs/laravel.log)');
+        }
     }
 }

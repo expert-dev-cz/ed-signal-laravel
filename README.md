@@ -31,6 +31,7 @@ php artisan ed-signal:install
 
 ```env
 ED_SIGNAL_ENABLED=true
+ED_SIGNAL_DEBUG=false
 ED_SIGNAL_COLLECTOR_URL=https://tracking.example.com/api
 ED_SIGNAL_SITE_ID=your_site_id
 ED_SIGNAL_KEY_ID=your_key_id
@@ -146,6 +147,20 @@ php artisan ed-signal:test --vv
 ```
 
 This prints endpoint, HTTP status, response body, and missing configuration hints.
+
+With `--vv`, it also prints the runtime dispatch mode, resolved queue driver, middleware state, and browser SDK state. If the queue driver is not `sync`, normal events are only sent while a queue worker is running:
+
+```bash
+php artisan queue:work -v
+```
+
+To trace normal event handling in the Laravel log:
+
+```env
+ED_SIGNAL_DEBUG=true
+```
+
+After changing `.env`, run `php artisan config:clear`. Then inspect `storage/logs/laravel.log` for queue dispatch, collector acceptance, retryable HTTP failures, and permanently failed jobs. For a quick worker-free check, temporarily set `ED_SIGNAL_DISPATCH_MODE=sync`.
 
 ## Notes
 

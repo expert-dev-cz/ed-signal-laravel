@@ -2,6 +2,7 @@
 
 return [
     'enabled' => env('ED_SIGNAL_ENABLED', true),
+    'debug' => env('ED_SIGNAL_DEBUG', false),
 
     'collector_base_url' => env('ED_SIGNAL_COLLECTOR_URL', ''),
     'site_id' => env('ED_SIGNAL_SITE_ID', ''),

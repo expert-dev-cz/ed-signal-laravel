@@ -30,11 +30,19 @@ class EdSignal
     public function event(string $eventName, array $data = [], array $context = []): void
     {
         if (!config('ed-signal.enabled', false) || !config('ed-signal.send_server_events', true)) {
+            $this->debug('ED Signal event skipped because server tracking is disabled.', [
+                'event_name' => $eventName,
+                'enabled' => (bool) config('ed-signal.enabled', false),
+                'send_server_events' => (bool) config('ed-signal.send_server_events', true),
+            ]);
             return;
         }
 
         $request = $context['request'] ?? request();
         if (!$request instanceof Request) {
+            $this->debug('ED Signal event skipped because no HTTP request is available.', [
+                'event_name' => $eventName,
+            ]);
             return;
         }
 
@@ -44,6 +52,10 @@ class EdSignal
 
         $dispatchMode = (string) config('ed-signal.dispatch_mode', 'queue');
         if ($dispatchMode === 'sync') {
+            $this->debug('ED Signal event is being sent synchronously.', [
+                'event_name' => $eventName,
+                'event_id' => $payload['event_id'],
+            ]);
             $this->sendSyncSafely($payload, $eventName);
             return;
         }
@@ -63,6 +75,12 @@ class EdSignal
 
         try {
             dispatch($job);
+            $this->debug('ED Signal event dispatched to queue.', [
+                'event_name' => $eventName,
+                'event_id' => $payload['event_id'],
+                'queue' => $queue,
+                'queue_connection' => $connection ?: config('queue.default'),
+            ]);
         } catch (Throwable $exception) {
             Log::warning('ED Signal queue dispatch failed.', [
                 'event_name' => $eventName,
@@ -202,7 +220,15 @@ class EdSignal
                 if (!(bool) config('ed-signal.suppress_dispatch_exceptions', true)) {
                     throw new \RuntimeException($result['error_message'] !== '' ? $result['error_message'] : 'ED Signal sync send failed.');
                 }
+
+                return;
             }
+
+            $this->debug('ED Signal synchronous event accepted by collector.', [
+                'event_name' => $eventName,
+                'event_id' => $payload['event_id'] ?? null,
+                'status_code' => $result['status_code'],
+            ]);
         } catch (Throwable $exception) {
             Log::warning('ED Signal sync send failed.', [
                 'event_name' => $eventName,
@@ -223,5 +249,13 @@ class EdSignal
         }
 
         return 'without_consent';
+    }
+
+    /** @param array<string, mixed> $context */
+    private function debug(string $message, array $context = []): void
+    {
+        if ((bool) config('ed-signal.debug', false)) {
+            Log::debug($message, $context);
+        }
     }
 }
