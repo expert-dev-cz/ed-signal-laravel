@@ -115,6 +115,7 @@ Notes:
 - Server events
   - `page_view` for HTML GET/HEAD requests
   - `form_submit` for HTML POST requests
+  - `form_submit` also for Livewire/AJAX form requests (`/livewire/*`) when `ED_SIGNAL_TRACK_LIVEWIRE_FORMS_SERVER=true` (default)
   - `login` (Laravel `Login` event)
   - `sign_up` (Laravel `Registered` event)
 

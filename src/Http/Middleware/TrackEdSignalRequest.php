@@ -37,11 +37,16 @@ class TrackEdSignalRequest
         $request->attributes->set('ed_signal.consent', $consent);
 
         if ($this->shouldTrackServerPageView($request)) {
+            $traffic = $this->resolveTrafficContext($request);
+
             $this->edSignal->event('page_view', [
                 'path' => '/' . ltrim($request->path(), '/'),
-                'traffic_source' => $request->query('utm_source', 'direct'),
-                'traffic_medium' => $request->query('utm_medium', '(none)'),
-                'traffic_campaign' => $request->query('utm_campaign'),
+                'traffic_channel' => $traffic['channel'],
+                'traffic_source' => $traffic['source'],
+                'traffic_medium' => $traffic['medium'],
+                'traffic_campaign' => $traffic['campaign'],
+                'traffic_is_direct' => $traffic['is_direct'],
+                'traffic_referrer_host' => $traffic['referrer_host'],
             ], [
                 'request' => $request,
                 'session' => $session,
@@ -50,10 +55,12 @@ class TrackEdSignalRequest
         }
 
         if ($this->shouldTrackServerFormSubmit($request)) {
+            $source = $this->isLivewireRequest($request) ? 'livewire_ajax' : 'laravel_post';
+
             $this->edSignal->event('form_submit', [
                 'path' => '/' . ltrim($request->path(), '/'),
                 'safe_field_count' => count($this->safePostFields($request)),
-                'source' => 'laravel_post',
+                'source' => $source,
             ], [
                 'request' => $request,
                 'session' => $session,
@@ -141,6 +148,10 @@ class TrackEdSignalRequest
             return false;
         }
 
+        if ($this->isLivewireRequest($request) && config('ed-signal.tracking.track_livewire_forms_server', true)) {
+            return true;
+        }
+
         if ($request->expectsJson() || $request->isXmlHttpRequest()) {
             return false;
         }
@@ -172,6 +183,10 @@ class TrackEdSignalRequest
 
     private function isExcluded(Request $request): bool
     {
+        if ($this->isLivewireRequest($request) && config('ed-signal.tracking.track_livewire_forms_server', true)) {
+            return false;
+        }
+
         $patterns = (array) config('ed-signal.tracking.exclude_paths', []);
 
         foreach ($patterns as $pattern) {
@@ -181,5 +196,105 @@ class TrackEdSignalRequest
         }
 
         return false;
+    }
+
+    private function isLivewireRequest(Request $request): bool
+    {
+        if ($request->is('livewire/*')) {
+            return true;
+        }
+
+        if ($request->headers->has('X-Livewire')) {
+            return true;
+        }
+
+        return is_array($request->input('components')) || is_array($request->input('fingerprint'));
+    }
+
+    /** @return array{channel:string,source:string,medium:string,campaign:?string,is_direct:bool,referrer_host:?string} */
+    private function resolveTrafficContext(Request $request): array
+    {
+        $utmSource = $this->cleanLower((string) $request->query('utm_source', ''));
+        $utmMedium = $this->cleanLower((string) $request->query('utm_medium', ''));
+        $utmCampaign = $this->clean((string) $request->query('utm_campaign', ''));
+        $gclid = $this->clean((string) $request->query('gclid', ''));
+        $gbraid = $this->clean((string) $request->query('gbraid', ''));
+        $wbraid = $this->clean((string) $request->query('wbraid', ''));
+
+        $paidSignal = $gclid !== null || $gbraid !== null || $wbraid !== null;
+
+        $referrer = (string) $request->headers->get('referer', '');
+        $referrerHost = $this->extractHost($referrer);
+
+        $source = $utmSource ?? ($referrerHost ?? 'direct');
+        $medium = $utmMedium ?? ($paidSignal ? 'cpc' : ($referrerHost !== null ? 'referral' : '(none)'));
+
+        $channel = 'other';
+        if ($source === 'direct' && $medium === '(none)' && !$paidSignal) {
+            $channel = 'direct';
+        } elseif ($paidSignal || in_array($medium, ['cpc', 'ppc', 'paid', 'paid_search', 'sem'], true)) {
+            $channel = 'paid_search';
+        } elseif ($medium === 'organic' || $this->isSearchHost($source)) {
+            $channel = 'organic_search';
+        } elseif (in_array($medium, ['social', 'paid_social', 'social_paid'], true) || $this->isSocialHost($source)) {
+            $channel = 'social';
+        } elseif ($medium === 'email') {
+            $channel = 'email';
+        } elseif ($medium === 'referral') {
+            $channel = 'referral';
+        }
+
+        return [
+            'channel' => $channel,
+            'source' => $source,
+            'medium' => $medium,
+            'campaign' => $utmCampaign,
+            'is_direct' => $channel === 'direct',
+            'referrer_host' => $referrerHost,
+        ];
+    }
+
+    private function clean(string $value): ?string
+    {
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
+    }
+
+    private function cleanLower(string $value): ?string
+    {
+        $clean = $this->clean($value);
+
+        return $clean === null ? null : strtolower($clean);
+    }
+
+    private function extractHost(string $url): ?string
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+        if (!is_string($host) || $host === '') {
+            return null;
+        }
+
+        return strtolower($host);
+    }
+
+    private function isSearchHost(string $source): bool
+    {
+        return str_contains($source, 'google.')
+            || str_contains($source, 'bing.com')
+            || str_contains($source, 'duckduckgo.com')
+            || str_contains($source, 'seznam.cz')
+            || str_contains($source, 'yahoo.');
+    }
+
+    private function isSocialHost(string $source): bool
+    {
+        return str_contains($source, 'facebook.com')
+            || str_contains($source, 'instagram.com')
+            || str_contains($source, 'linkedin.com')
+            || str_contains($source, 'tiktok.com')
+            || str_contains($source, 'x.com')
+            || str_contains($source, 'twitter.com')
+            || str_contains($source, 'youtube.com');
     }
 }

@@ -29,6 +29,7 @@ return [
         'use_middleware' => env('ED_SIGNAL_USE_MIDDLEWARE', true),
         'track_page_view_server' => true,
         'track_form_submit_server' => true,
+        'track_livewire_forms_server' => env('ED_SIGNAL_TRACK_LIVEWIRE_FORMS_SERVER', true),
         'track_auth_events_server' => true,
         'exclude_paths' => [
             'admin*',
